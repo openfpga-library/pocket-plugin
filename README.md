@@ -6,7 +6,9 @@ Plugins for Analogue Pocket updaters (Pocket Sync, pupdate) using extism
 You'll need to `rustup target add wasm32-wasip1` if you've not got it already, then
 `cargo build -p example_plugin --target wasm32-wasip1 && cargo run -p demo_host`
 
-should run the example plugin within the demo app
+should run the example plugin within the demo app.
+
+The demo host app is more complex than I'd hoped, but most of that's just getting the tokio channels to send data between the task that's running the plugin & the UI one. The actual Plugin running code is fairly simple, I think.
 
 ## Flow
 
@@ -61,6 +63,7 @@ sequenceDiagram
 - [x] Sketch out host_fns & plugin_fns
 - [x] Rough Demo & app
 - [] Add another folder accessible by the plugin on the host machine (empy folder, sub-directory on the app directory, exposed as `computer/` or something)
+- [] Tidy this up generally
 - [] Add logic & schema for the JSON file that'll be beside a plugin that tells us the name, a description, what hosts it wants to access (with a wildcard option) etc
 - [] Document how the Plugin system works for non-Rust plugins (not 100% sure how the enums are encoded etc)
 - [] Generate a schema https://github.com/extism/rust-pdk#generating-bindings
