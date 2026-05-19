@@ -1,0 +1,4 @@
+[workspace]
+members = ["demo_host", "example_plugin"]
+
+resolver = "2"
