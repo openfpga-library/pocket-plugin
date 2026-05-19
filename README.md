@@ -58,12 +58,12 @@ sequenceDiagram
 ```
 
 ## TODO
-[x] Sketch out host_fns & plugin_fns
-[x] Rough Demo & app
-[] Add another folder accessible by the plugin on the host machine (empy folder, sub-directory on the app directory, exposed as `computer/` or something)
-[] Add logic & schema for the JSON file that'll be beside a plugin that tells us the name, a description, what hosts it wants to access (with a wildcard option) etc
-[] Document how the Plugin system works for non-Rust plugins (not 100% sure how the enums are encoded etc)
-[] Generate a schema https://github.com/extism/rust-pdk#generating-bindings
+- [x] Sketch out host_fns & plugin_fns
+- [x] Rough Demo & app
+- [] Add another folder accessible by the plugin on the host machine (empy folder, sub-directory on the app directory, exposed as `computer/` or something)
+- [] Add logic & schema for the JSON file that'll be beside a plugin that tells us the name, a description, what hosts it wants to access (with a wildcard option) etc
+- [] Document how the Plugin system works for non-Rust plugins (not 100% sure how the enums are encoded etc)
+- [] Generate a schema https://github.com/extism/rust-pdk#generating-bindings
 
 ## Unknowns
 - We could show the plugin individual folders for Games / Saves / Cores etc, but I don't think this would give us much
