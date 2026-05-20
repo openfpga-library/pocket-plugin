@@ -16,6 +16,7 @@ The plugin must define at least a `start` `plugin_fn` (no arguments), if it does
 If it needs to ask the user for input it'll also need a `handle_response` `plugin_fn` which recieves the `HostMessage` enum, JSON serialised - which can either be a response to a `PluginMessage` that's asked for input, or a signal to kill the plugin.
 
 The host must define a `open_url` `host_fn` which takes a url as a string and should open it in the user's browser.
+The host must define a `print_msg` `host_fn` which takes a message as a string and should log it (acts like `print` rather than `println` so the plugin has to care about newlines etc).
 
 The host should respond to the 3 possible `PluginMessage` options (`Choice`, `Text`, `Exit`) by:
 - rendering UI with a multiple choice
@@ -31,7 +32,7 @@ sequenceDiagram
     Host->>Plugin: call start()
     Note right of Plugin: Plugin runs
     Note right of Plugin: Can call open_url host_fn
-    Note right of Plugin: Can call info! to write to host app log
+    Note right of Plugin: Can call print_msg to write to host app log (or `info!`, `error!` etc)
     Note right of Plugin: Can perform file system operations & http requests etc
     Plugin-->>Host: return PluginMessage (JSON-serialized)
     Note over Plugin,Host: PluginMessage is either Choice, Text, or Exit

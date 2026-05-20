@@ -1,6 +1,6 @@
 use extism_pdk::*;
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::{fs, time::Duration};
 
 #[derive(Clone, Serialize, ToBytes)]
 #[encoding(Json)]
@@ -27,11 +27,24 @@ enum HostMessage {
 #[host_fn]
 unsafe extern "ExtismHost" {
     fn open_url(url: &str) -> ();
+    fn print_msg(message: &str) -> ();
+}
+
+fn print(msg: &str) -> () {
+    unsafe {
+        let _ = print_msg(msg);
+    };
+}
+
+fn println(msg: &str) -> () {
+    unsafe {
+        let _ = print_msg(&format!("{msg}\n"));
+    };
 }
 
 #[plugin_fn]
 pub fn start() -> FnResult<PluginMessage> {
-    info!("Plugin's running!");
+    println("Plugin's running!");
 
     Ok(PluginMessage::Choice {
         name: "main-menu".to_string(),
@@ -47,34 +60,42 @@ pub fn start() -> FnResult<PluginMessage> {
 
 #[plugin_fn]
 pub fn handle_response(input: HostMessage) -> FnResult<PluginMessage> {
-    info!("Handling response!");
+    println("Handling response!");
     match input {
         HostMessage::Answer { name, value } => match (name.as_str(), value.as_str()) {
             ("main-menu", "Download A File") => {
-                info!("Going to download a file...");
+                println("Going to download a file...");
+                let mut progress = 0;
+                while progress < 24 {
+                    progress += 1;
+                    print("█");
+                    std::thread::sleep(Duration::from_millis(200));
+                }
+                print("\n");
+
                 let request = HttpRequest::new("https://www.example.com");
                 let response = http::request::<()>(&request, None);
 
                 match response {
                     Ok(resp) => {
                         resp.body();
-                        info!("Did download something");
+                        println("Did download something!");
                         fs::write("pocket/file.html", resp.body())?;
                         return Ok(PluginMessage::Exit);
                     }
                     Err(err) => {
-                        error!("Failed to download something")
+                        error!("Failed to download something...")
                     }
                 }
                 Ok(PluginMessage::Exit)
             }
             ("main-menu", "Open A Website") => {
-                info!("Opening a website...");
+                println("Opening a website...");
                 unsafe { open_url("https://example.com")? };
                 Ok(PluginMessage::Exit)
             }
             ("main-menu", "Ask A Question") => {
-                info!("Asking a free text question...");
+                println("Asking a free text question...");
 
                 Ok(PluginMessage::Text {
                     name: "sub-question".to_string(),
@@ -82,11 +103,11 @@ pub fn handle_response(input: HostMessage) -> FnResult<PluginMessage> {
                 })
             }
             ("main-menu", "Exit") => {
-                info!("Exiting...");
+                println("Exiting...");
                 Ok(PluginMessage::Exit)
             }
             ("sub-question", response) => {
-                info!("So a woodchuck could chuck \"{response}\" wood!");
+                println(&format!("So a woodchuck could chuck \"{response}\" wood!"));
                 Ok(PluginMessage::Exit)
             }
             _ => Ok(PluginMessage::Exit),

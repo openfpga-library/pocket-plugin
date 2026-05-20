@@ -1,18 +1,15 @@
-use std::time::Duration;
-
 use extism::convert::Json;
-use extism::sdk::{extism_log_custom, extism_log_drain};
 use extism::*;
-use lazy_static::lazy_static;
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, List, ListDirection, ListState, Paragraph};
+use ratatui::widgets::{Block, Borders, List, ListDirection, ListState, Paragraph, Wrap};
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Direction, Layout},
 };
-use regex::Regex;
 use serde::{Deserialize, Serialize};
-use terminal_size::{Height, Width, terminal_size};
+use std::sync::OnceLock;
+use std::time::Duration;
+use std::vec;
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 use webbrowser;
@@ -39,13 +36,17 @@ enum HostMessage {
     Kill,
 }
 
-// let mut message_history :Vec<String> = vec![];
+static LOG_TX: OnceLock<mpsc::Sender<String>> = OnceLock::new();
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() -> Result<(), anyhow::Error> {
     let (plugin_to_host_tx, mut plugin_to_host_rx) = mpsc::channel(16);
     let (log_tx, mut log_rx) = mpsc::channel(16);
     let (host_to_plugin_tx, mut host_to_plugin_rx) = mpsc::channel(16);
+
+    if LOG_TX.set(log_tx.clone()).is_err() {
+        panic!("LOG_TX was already initialized!");
+    }
 
     let mut set = JoinSet::new();
 
@@ -67,6 +68,13 @@ host_fn!(pub open_url(url: &str) {
   Ok(())
 });
 
+host_fn!(pub print_msg(message: &str) {
+  if let Some(tx) = LOG_TX.get() {
+    let _ = tx.try_send(message.to_string());
+  }
+  Ok(())
+});
+
 async fn run_plugin(
     plugin_to_host_tx: tokio::sync::mpsc::Sender<PluginMessage>,
     mut host_to_plugin_rx: tokio::sync::mpsc::Receiver<HostMessage>,
@@ -74,20 +82,7 @@ async fn run_plugin(
 ) -> Result<(), anyhow::Error> {
     extism::set_log_callback(
         move |log_line| {
-            // Since we're reusing extism's native `log` functionality we need to remove a bunch of stuff
-            // from it like the timestamp & where it originated from
-            // these might be different depending on the language the WASM module is written in which could be annoying...
-            lazy_static! {
-                static ref RE: Regex =
-                    Regex::new(r"^.*?INFO\s+extism::pdk:\s(.*)\splugin=.*").unwrap();
-            }
-            let message = log_line.trim_end();
-            if let Some(regex_match) = RE.captures(message).and_then(|c| c.get(1)) {
-                let clean_log = regex_match.as_str();
-                let _ = log_tx.try_send(clean_log.to_string());
-            } else {
-                let _ = log_tx.try_send(message.to_string());
-            }
+            let _ = log_tx.try_send(log_line.to_string());
         },
         "info",
     )?;
@@ -102,7 +97,8 @@ async fn run_plugin(
 
     let mut plugin = PluginBuilder::new(manifest)
         .with_wasi(true)
-        .with_function("open_url", [PTR], [PTR], user_data, open_url)
+        .with_function("open_url", [PTR], [PTR], user_data.clone(), open_url)
+        .with_function("print_msg", [PTR], [PTR], user_data.clone(), print_msg)
         .build()
         .unwrap();
 
@@ -146,10 +142,10 @@ async fn run_plugin(
 async fn run_ui(
     host_to_plugin_tx: tokio::sync::mpsc::Sender<HostMessage>,
     plugin_to_host_rx: tokio::sync::mpsc::Receiver<PluginMessage>,
-    log_tx: tokio::sync::mpsc::Receiver<String>,
+    log_rx: tokio::sync::mpsc::Receiver<String>,
 ) -> Result<(), anyhow::Error> {
     let mut terminal = ratatui::init();
-    let result = app(&mut terminal, host_to_plugin_tx, plugin_to_host_rx, log_tx).await;
+    let result = app(&mut terminal, host_to_plugin_tx, plugin_to_host_rx, log_rx).await;
     ratatui::restore();
     result.map_err(|e| e.into())
 }
@@ -158,7 +154,7 @@ async fn app(
     terminal: &mut DefaultTerminal,
     host_to_plugin_tx: tokio::sync::mpsc::Sender<HostMessage>,
     mut plugin_to_host_rx: tokio::sync::mpsc::Receiver<PluginMessage>,
-    mut log_tx: tokio::sync::mpsc::Receiver<String>,
+    mut log_rx: tokio::sync::mpsc::Receiver<String>,
 ) -> std::io::Result<()> {
     let mut logs: Vec<String> = vec![];
     let mut last_plugin_message: Option<PluginMessage> = None;
@@ -235,8 +231,24 @@ async fn app(
             last_plugin_message = Some(msg);
         }
 
-        while let Ok(log_line) = log_tx.try_recv() {
-            logs.push(log_line);
+        while let Ok(log_line) = log_rx.try_recv() {
+            if logs.is_empty() {
+                logs.push(String::new());
+            }
+            let mut parts = log_line.split('\n').peekable();
+
+            while let Some(part) = parts.next() {
+                if let Some(last_log) = logs.last_mut() {
+                    last_log.push_str(part);
+                }
+                if parts.peek().is_some() {
+                    logs.push(String::new());
+                }
+            }
+
+            if logs.len() > 20 {
+                logs = logs[1..].to_vec();
+            }
         }
     }
 }
@@ -253,11 +265,12 @@ fn render(
         .constraints(vec![Constraint::Percentage(60), Constraint::Percentage(40)])
         .split(frame.area());
 
-    // Join your accumulated log string lines with newlines
     let logs_text = logs.join("\n");
 
     frame.render_widget(
-        Paragraph::new(logs_text).block(Block::new().borders(Borders::ALL).title("Plugin Logs")),
+        Paragraph::new(logs_text)
+            .block(Block::new().borders(Borders::ALL).title("Plugin Logs"))
+            .wrap(Wrap { trim: true }),
         layout[0],
     );
 
