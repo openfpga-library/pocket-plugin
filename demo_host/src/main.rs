@@ -72,6 +72,7 @@ static PLUGIN_INFO: OnceLock<PluginInfo> = OnceLock::new();
 static WASM_PATH: OnceLock<PathBuf> = OnceLock::new();
 static POCKET_PATH: OnceLock<PathBuf> = OnceLock::new();
 static HOST_PATH: OnceLock<PathBuf> = OnceLock::new();
+static LOG_LEVEL: OnceLock<String> = OnceLock::new();
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() -> Result<(), anyhow::Error> {
@@ -102,6 +103,8 @@ async fn main() -> Result<(), anyhow::Error> {
     if !json_path.exists() {
         panic!("Unable to find info JSON at {:?}", json_path);
     }
+
+    LOG_LEVEL.set(args.log_level).unwrap();
 
     let file = fs::File::open(json_path)?;
     let plugin_info: PluginInfo = serde_json::from_reader(file)?;
@@ -146,11 +149,12 @@ async fn run_plugin(
     mut host_to_plugin_rx: tokio::sync::mpsc::Receiver<HostMessage>,
     log_tx: tokio::sync::mpsc::Sender<String>,
 ) -> Result<(), anyhow::Error> {
+    let log_level = LOG_LEVEL.get().unwrap();
     extism::set_log_callback(
         move |log_line| {
             let _ = log_tx.try_send(log_line.to_string());
         },
-        "info",
+        log_level,
     )?;
 
     let wasm_path = WASM_PATH.get().unwrap();
