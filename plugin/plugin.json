@@ -1,0 +1,5 @@
+{
+  "name": "Example Plugin",
+  "description": "An example of the sorts of things a plugin can do",
+  "allowed_hosts": ["www.example.com"]
+}
