@@ -1,3 +1,4 @@
+use clap::Parser;
 use extism::convert::Json;
 use extism::*;
 use ratatui::prelude::*;
@@ -7,12 +8,42 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
 };
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::sync::OnceLock;
 use std::time::Duration;
-use std::vec;
+use std::{fs, vec};
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 use webbrowser;
+
+// Demo app for Pocket Plugins
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Path to the Pocket's SD card (or fake pocket folder)
+    #[arg(short, long, default_value = "./fake_pocket")]
+    pocket_path: PathBuf,
+
+    /// Path to the folder on the host (for cache / safe storage)
+    #[arg(long, default_value = "./host_folder")]
+    host_folder: PathBuf,
+
+    /// info, error, trace, debug, warn
+    #[arg(short, long, default_value = "info")]
+    log_level: String,
+
+    /// folder to look for plugin.wasm & plugin.json in
+    #[arg(short, long)]
+    folder_plugin: PathBuf,
+}
+
+#[derive(Deserialize, Default, Debug)]
+struct PluginInfo {
+    name: String,
+    description: Option<String>,
+    logo_url: Option<String>,
+    allowed_hosts: Vec<String>,
+}
 
 #[derive(Clone, Deserialize, FromBytes, Debug)]
 #[encoding(Json)]
@@ -37,21 +68,56 @@ enum HostMessage {
 }
 
 static LOG_TX: OnceLock<mpsc::Sender<String>> = OnceLock::new();
+static PLUGIN_INFO: OnceLock<PluginInfo> = OnceLock::new();
+static WASM_PATH: OnceLock<PathBuf> = OnceLock::new();
+static POCKET_PATH: OnceLock<PathBuf> = OnceLock::new();
+static HOST_PATH: OnceLock<PathBuf> = OnceLock::new();
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() -> Result<(), anyhow::Error> {
-    let (plugin_to_host_tx, mut plugin_to_host_rx) = mpsc::channel(16);
-    let (log_tx, mut log_rx) = mpsc::channel(16);
-    let (host_to_plugin_tx, mut host_to_plugin_rx) = mpsc::channel(16);
+    let args = Args::parse();
 
-    if LOG_TX.set(log_tx.clone()).is_err() {
-        panic!("LOG_TX was already initialized!");
+    let pocket_path = args.pocket_path;
+    if !pocket_path.exists() {
+        panic!("Unable to find pocket folder {:?}", &pocket_path);
     }
 
+    POCKET_PATH.set(pocket_path).unwrap();
+
+    let host_path = args.host_folder;
+    if !host_path.exists() {
+        panic!("Unable to find host folder {:?}", &host_path);
+    }
+
+    HOST_PATH.set(host_path).unwrap();
+
+    let wasm_path = args.folder_plugin.join("plugin.wasm");
+    if !wasm_path.exists() {
+        panic!("Unable to find WASM at {:?}", &wasm_path);
+    }
+
+    WASM_PATH.set(wasm_path).unwrap();
+
+    let json_path = args.folder_plugin.join("plugin.json");
+    if !json_path.exists() {
+        panic!("Unable to find info JSON at {:?}", json_path);
+    }
+
+    let file = fs::File::open(json_path)?;
+    let plugin_info: PluginInfo = serde_json::from_reader(file)?;
+
+    println!("loading plugin {}...", plugin_info.name);
+
+    PLUGIN_INFO.set(plugin_info).unwrap();
+
+    let (plugin_to_host_tx, plugin_to_host_rx) = mpsc::channel(16);
+    let (log_tx, log_rx) = mpsc::channel(16);
+    let (host_to_plugin_tx, host_to_plugin_rx) = mpsc::channel(16);
+
+    LOG_TX.set(log_tx.clone()).unwrap();
+
     let mut set = JoinSet::new();
-
     set.spawn(async move { run_plugin(plugin_to_host_tx, host_to_plugin_rx, log_tx).await });
-
     set.spawn(async move { run_ui(host_to_plugin_tx, plugin_to_host_rx, log_rx).await });
 
     while let Some(res) = set.join_next().await {
@@ -87,11 +153,25 @@ async fn run_plugin(
         "info",
     )?;
 
-    let url = Wasm::file("./target/wasm32-wasip1/debug/example_plugin.wasm");
+    let wasm_path = WASM_PATH.get().unwrap();
+    let wasm_file = Wasm::file(wasm_path);
+    let plugin_info = PLUGIN_INFO.get().unwrap();
+    let pocket_path = POCKET_PATH.get().unwrap();
+    let host_path = HOST_PATH.get().unwrap();
 
-    let manifest = Manifest::new([url])
-        .with_allowed_path("./fake_pocket".to_string(), "pocket")
-        .with_allowed_host("www.example.com");
+    let manifest = Manifest::new([wasm_file])
+        .with_allowed_path(
+            pocket_path
+                .to_str()
+                .expect("Invalid pocket path")
+                .to_string(),
+            "pocket",
+        )
+        .with_allowed_path(
+            host_path.to_str().expect("Invalid host path").to_string(),
+            "host",
+        )
+        .with_allowed_hosts(plugin_info.allowed_hosts.clone().into_iter());
 
     let user_data = UserData::new(());
 
@@ -267,9 +347,15 @@ fn render(
 
     let logs_text = logs.join("\n");
 
+    let plugin_info = PLUGIN_INFO.get().unwrap();
+
     frame.render_widget(
         Paragraph::new(logs_text)
-            .block(Block::new().borders(Borders::ALL).title("Plugin Logs"))
+            .block(
+                Block::new()
+                    .borders(Borders::ALL)
+                    .title(format!("{} - Plugin Logs", &plugin_info.name)),
+            )
             .wrap(Wrap { trim: true }),
         layout[0],
     );

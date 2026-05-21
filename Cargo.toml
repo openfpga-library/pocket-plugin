@@ -1,4 +1,4 @@
 [workspace]
-members = ["demo_host", "example_plugin"]
+members = ["demo_host", "plugin"]
 
 resolver = "2"

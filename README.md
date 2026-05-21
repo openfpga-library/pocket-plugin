@@ -4,9 +4,15 @@ Plugins for Analogue Pocket updaters (Pocket Sync, pupdate) using extism
 
 ## To build
 You'll need to `rustup target add wasm32-wasip1` if you've not got it already, then
-`cargo build -p example_plugin --target wasm32-wasip1 && cargo run -p demo_host`
+`cargo build -p plugin --target wasm32-wasip1`
+Then run
+`cargo run -p demo_host -- --folder-plugin ./target/wasm32-wasip1/debug`
+
+(or `cargo build -p plugin --target wasm32-wasip1 && cargo run -p demo_host -- --folder-plugin ./target/wasm32-wasip1/debug`)
 
 should run the example plugin within the demo app.
+
+The demo_host app can be told to look at the actual Pocket SD card, see what's available with `cargo run -p demo_host -- --help`.
 
 The demo host app is more complex than I'd hoped, but most of that's just getting the tokio channels to send data between the task that's running the plugin & the UI one. The actual Plugin running code is fairly simple, I think.
 
