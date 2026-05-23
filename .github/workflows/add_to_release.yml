@@ -1,0 +1,35 @@
+name: Add to release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Release Plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - run: rustup target add wasm32-wasip1
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - run: cargo build -p plugin --target wasm32-wasip1 --release
+
+      - name: "Add WASM & JSON to release"
+        run: |
+          gh release upload ${{github.event.release.tag_name}} ./target/wasm32-wasip1/debug/plugin.wasm --clobber
+          gh release upload ${{github.event.release.tag_name}} ./target/wasm32-wasip1/debug/plugin.json --clobber
+        env:
+          GITHUB_TOKEN: ${{ github.TOKEN }}
+        shell: bash
