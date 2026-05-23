@@ -1,6 +1,22 @@
 # pocket-plugin
 Plugins for Analogue Pocket updaters (Pocket Sync, pupdate) using extism
 
+## What can be done with a Pocket Plugin?
+
+- Create, read, write, list, and modify arbitrary files on the Pocket, with full access to the pocket's filesystem
+- Make HTTP requests from the plugin (using extism's `http` module)
+- Store files & cache on the user's computer, in a sandboxed folder dedicated to the plugin
+- Print log information to the user as the plugin processes
+- Ask for 2 types of input from the user - multiple choice (for menus etc) & free text input (for keys, tokens, etc)
+- Open urls in the user's browser (to confirm an upload happened, open a key management portal, etc)
+
+## Tips
+
+- Because WASM & Extism plugins are single threaded there's a few things to consider:
+  - If you want to download big files without having the user think they're stalled consider downloading them in chunks using range headers & showing progress via the log.
+  - There isn't a nice way to gracefully shut down the WASM plugin mid-way, so write defensively (e.g. if a file named `file.txt` is being modified; first copy it to `file_copy.txt`, do the modifications, then rename `file_copy.txt` to `file.txt`)
+  - The host app will handle notifying the WASM app that the user's chosen to quit (via the `Kill` HostMessage), but the Plugin won't actually quit until the Plugin returns the `Exit` PluginMessage so any confirmation / clean up etc can happen
+- Use the `print()` host_fn often so the user knows the plugin is running - note that this is a `print` rather than a `println` so the app should ouput `this is a log.\n`.
 
 ## To build
 You'll need to `rustup target add wasm32-wasip1` if you've not got it already, then
@@ -86,6 +102,3 @@ sequenceDiagram
 - [x] Add logic & schema for the JSON file that'll be beside a plugin that tells us the name, a description, what hosts it wants to access (with a wildcard option) etc
 - [ ] Document how the Plugin system works for non-Rust plugins (not 100% sure how the enums are encoded etc)
 - [ ] Generate a schema https://github.com/extism/rust-pdk#generating-bindings
-
-## Unknowns
-- We could show the plugin individual folders for Games / Saves / Cores etc, but I don't think this would give us much
