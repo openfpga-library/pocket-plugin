@@ -17,6 +17,14 @@ Plugins for Analogue Pocket updaters (Pocket Sync, pupdate) using extism
   - There isn't a nice way to gracefully shut down the WASM plugin mid-way, so write defensively (e.g. if a file named `file.txt` is being modified; first copy it to `file_copy.txt`, do the modifications, then rename `file_copy.txt` to `file.txt`)
   - The host app will handle notifying the WASM app that the user's chosen to quit (via the `Kill` HostMessage), but the Plugin won't actually quit until the Plugin returns the `Exit` PluginMessage so any confirmation / clean up etc can happen
 - Use the `print()` host_fn often so the user knows the plugin is running - note that this is a `print` rather than a `println` so the app should ouput `this is a log.\n`.
+- The `PluginMessage` & `HostMessage` are Rust enums, encoded into JSON by serde using the [deafult externally tagged representation](https://serde.rs/enum-representations.html#externally-tagged) so you will get `HostMessages` that look like
+```json
+{"Answer": {"name": "...", "value": "..."}}
+```
+or
+```json
+{"Kill": {}}
+```
 
 ## To build
 You'll need to `rustup target add wasm32-wasip1` if you've not got it already, then
@@ -100,5 +108,5 @@ sequenceDiagram
 - [x] Add another folder accessible by the plugin on the host machine (empy folder, sub-directory on the app directory, exposed as `computer/` or something)
 - [x] Tidy this up generally
 - [x] Add logic & schema for the JSON file that'll be beside a plugin that tells us the name, a description, what hosts it wants to access (with a wildcard option) etc
-- [ ] Document how the Plugin system works for non-Rust plugins (not 100% sure how the enums are encoded etc)
-- [ ] Generate a schema https://github.com/extism/rust-pdk#generating-bindings
+- [x] Document how the Plugin system works for non-Rust plugins (not 100% sure how the enums are encoded etc)
+- [ ] ~~Generate a schema https://github.com/extism/rust-pdk#generating-bindings~~ looks like v1 of this is still a draft, maybe later
