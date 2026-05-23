@@ -4,6 +4,7 @@ Plugins for Analogue Pocket updaters (Pocket Sync, pupdate) using extism
 ## What can be done with a Pocket Plugin?
 
 - Create, read, write, list, and modify arbitrary files on the Pocket, with full access to the pocket's filesystem
+- Run exactly the same plugin in pupdate, Pocket Sync, and any other app that comes along.
 - Make HTTP requests from the plugin (using extism's `http` module)
 - Store files & cache on the user's computer, in a sandboxed folder dedicated to the plugin
 - Print log information to the user as the plugin processes
