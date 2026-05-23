@@ -16,6 +16,18 @@ The demo_host app can be told to look at the actual Pocket SD card, see what's a
 
 The demo host app is more complex than I'd hoped, but most of that's just getting the tokio channels to send data between the task that's running the plugin & the UI one. The actual Plugin running code is fairly simple, I think.
 
+## To test other plugins
+
+Use the `demo_host` here to test other plugins via `cargo run -p demo_host -- --folder-plugin [your folder contaning the wasm & json file] --log-level trace`.
+
+(note for non-rust devs, run `cargo clean` after you're done since Rust will casually eat up gigabytes worth of space storing build assets etc)
+
+## To release
+
+To release a plugin create a github repo that has releases which contain `plugin.wasm` & `plugin.json` files [like this repo does](https://github.com/openfpga-library/pocket-plugin/releases/tag/v0.0.2) (other non-github platforms might be supported in the future).
+
+To tell users about the plugin give them the repo link e.g. `https://github.com/openfpga-library/pocket-plugin` and the host apps will look up the latest release, find the json & wasm, load them for the user, and keep them up to date (using the release title as the version number).
+
 ## Flow
 
 The plugin must define at least a `start` `plugin_fn` (no arguments), if it doesn't need to ask the user for input.
@@ -72,8 +84,8 @@ sequenceDiagram
 - [x] Add another folder accessible by the plugin on the host machine (empy folder, sub-directory on the app directory, exposed as `computer/` or something)
 - [x] Tidy this up generally
 - [x] Add logic & schema for the JSON file that'll be beside a plugin that tells us the name, a description, what hosts it wants to access (with a wildcard option) etc
-- [] Document how the Plugin system works for non-Rust plugins (not 100% sure how the enums are encoded etc)
-- [] Generate a schema https://github.com/extism/rust-pdk#generating-bindings
+- [ ] Document how the Plugin system works for non-Rust plugins (not 100% sure how the enums are encoded etc)
+- [ ] Generate a schema https://github.com/extism/rust-pdk#generating-bindings
 
 ## Unknowns
 - We could show the plugin individual folders for Games / Saves / Cores etc, but I don't think this would give us much
