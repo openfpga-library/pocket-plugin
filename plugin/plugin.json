@@ -1,5 +1,6 @@
 {
   "name": "Example Plugin",
   "description": "An example of the sorts of things a plugin can do",
-  "allowed_hosts": ["www.example.com"]
+  "allowed_hosts": ["www.example.com"],
+  "logo_url":"https://raw.githubusercontent.com/openfpga-library/pocket-plugin/main/plugin_icon.png"
 }
