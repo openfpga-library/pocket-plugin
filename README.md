@@ -111,6 +111,3 @@ sequenceDiagram
 - [x] Add logic & schema for the JSON file that'll be beside a plugin that tells us the name, a description, what hosts it wants to access (with a wildcard option) etc
 - [x] Document how the Plugin system works for non-Rust plugins (not 100% sure how the enums are encoded etc)
 - [ ] ~~Generate a schema https://github.com/extism/rust-pdk#generating-bindings~~ looks like v1 of this is still a draft, maybe later
-
-
-![Plugin Icon](plugin_icon.png)
