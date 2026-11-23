@@ -42,6 +42,46 @@ fn println(msg: &str) -> () {
     };
 }
 
+/// True if the host renders `print_msg` output as markdown.
+fn host_renders_markdown() -> bool {
+    matches!(config::get("output_format"), Ok(Some(f)) if f == "markdown")
+}
+
+const MARKDOWN_DEMO: &str = r#"# Heading 1
+## Heading 2
+### Heading 3
+
+Plain text with **bold**, *italic*, ***both***, ~~strikethrough~~ and `inline code`.
+
+A [link](https://example.com) opens in the user's browser.
+
+> A blockquote, handy for notes and warnings.
+
+- Unordered item
+- Another item
+  - A nested item
+
+1. First step
+2. Second step
+3. Third step
+
+- [x] Task done
+- [ ] Task to do
+
+| Core | Status |
+|------|--------|
+| GBA  | ready  |
+| NES  | pending |
+
+```
+fenced code block
+  keeps its spacing
+```
+
+---
+
+Raw <b>HTML</b> is not rendered."#;
+
 #[plugin_fn]
 pub fn start() -> FnResult<PluginMessage> {
     println("Plugin's running!");
@@ -53,6 +93,7 @@ pub fn start() -> FnResult<PluginMessage> {
             "Download A File".to_string(),
             "Open A Website".to_string(),
             "Ask A Question".to_string(),
+            "Show Markdown".to_string(),
             "Exit".to_string(),
         ],
     })
@@ -101,6 +142,14 @@ pub fn handle_response(input: HostMessage) -> FnResult<PluginMessage> {
                     name: "sub-question".to_string(),
                     query: "How much wood would a woodchuck chuck?".to_string(),
                 })
+            }
+            ("main-menu", "Show Markdown") => {
+                if host_renders_markdown() {
+                    println(MARKDOWN_DEMO);
+                } else {
+                    println("This host shows plain text only.");
+                }
+                Ok(PluginMessage::Exit)
             }
             ("main-menu", "Exit") => {
                 println("Exiting...");
