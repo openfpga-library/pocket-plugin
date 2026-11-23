@@ -53,6 +53,18 @@ To release a plugin create a github repo that has releases which contain `plugin
 
 To tell users about the plugin give them the repo link e.g. `https://github.com/openfpga-library/pocket-plugin` and the host apps will look up the latest release, find the json & wasm, load them for the user, and keep them up to date (using the release title as the version number).
 
+## Markdown output (optional)
+
+Output sent through `print_msg` is plain text by default. A plugin can opt in to markdown without any protocol change:
+
+1. Add `"output_format": "markdown"` to `plugin.json`.
+2. A host that renders markdown sets the `output_format` config key to `"markdown"` for that plugin. Other hosts leave it unset.
+3. The plugin reads the key (`config::get("output_format")`) and prints markdown or plain text accordingly.
+
+Hosts render GitHub-flavoured markdown (headings, emphasis, code, lists, blockquotes, tables, links, rules) but not raw HTML. The example plugin's "Show Markdown" option shows every element.
+
+Pocket Sync renders markdown; pupdate shows plain text.
+
 ## Flow
 
 The plugin must define at least a `start` `plugin_fn` (no arguments), if it doesn't need to ask the user for input.
